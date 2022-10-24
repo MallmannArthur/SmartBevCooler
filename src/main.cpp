@@ -1,18 +1,20 @@
-#define BLYNK_TEMPLATE_ID "TMPLXbeVR6Ni"
-#define BLYNK_DEVICE_NAME "Quickstart Template"
-#define BLYNK_AUTH_TOKEN "2jNRi3NAn20VXR-FKHfpKbwI150fq3hR"
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#define BLYNK_PRINT Serial
-#include <ESP8266WiFi.h>
-#include <BlynkSimpleEsp8266.h>
-#define SENSOR_LEVEL10 12 //pino ligado ao sensor é D4 e GND
-#define SENSOR_LEVEL50 14 //pino ligado ao sensor é D5 e GND
-#define ONE_WIRE_BUS 4//pino ligado ao atuador é D2
-#define RELAY 2
+#define BLYNK_TEMPLATE_ID "TMPLXbeVR6Ni" // Id do template, valor vindo do APP
+#define BLYNK_DEVICE_NAME "Quickstart Template" //Nome do template, valor vindo do APP
+#define BLYNK_AUTH_TOKEN "2jNRi3NAn20VXR-FKHfpKbwI150fq3hR" //Token de autenticacao, valor vindo do APP
+#include <OneWire.h> //biblioteca para sensores digitais
+#include <DallasTemperature.h> //biblioteca para sensor de temperatura
+#include <ESP8266WiFi.h> //Usar ESP8266 como arduino
+#include <BlynkSimpleEsp8266.h> //Biblioteca basica do Blynk
+//Definicoes estaticas para uso das bibliotecas dos sensores e do Blynk
+#define BLYNK_PRINT Serial 
+// IMPORTANTE! Nao confundir GPIO com pinos. Ver imagem de pinagem da placa NodeMCU com o ESP8266
+#define SENSOR_LEVEL10 12 //GPIO 12, pino ligado ao sensor é D6 e GND 
+#define SENSOR_LEVEL50 14 //GPIO 14, pino ligado ao sensor é D5 e GND
+#define ONE_WIRE_BUS 4    //GPIO  4, pino ligado ao atuador é D2
+#define RELAY 2           //GPIO  2, pino de saída somente, pino D4
  
 
-// Setting up Global variables
+// Declaracao de variaveis globais
 bool flag_nivel10_baixo = false;
 bool flag_nivel10_acima = false;
 bool flag_nivel50_baixo = false;
@@ -30,34 +32,43 @@ BlynkTimer timer;
 WidgetLED led50(V5);
 WidgetLED led10(V6);
 
-// This function is called every time the Virtual Pin 0 state changes
+// Essa funcao e chamada sempre que o valor de V0 muda. V0 eh um pino virtual,
+// e portanto existe fora da placa fisica, e dentro do APP do Blynk. Quando 
+// valores sao escritos nesse pino, eles sao na verdade enviados via internet para
+// o pino virtual que eh lido pelo APP
 BLYNK_WRITE(V0)
 {
-  // Set incoming value from pin V0 to a variable
+  // Atribuir valor recem alterado do pino V0 a uma variavel de escopo
   int value = param.asInt();
 
-  // Update state
+  // Atualizando estado do pino
   Serial1.write(value);
 }
 
-// This function is called every time the device is connected to the Blynk.Cloud
+// Essa funcao eh chamada sempre que o dispositivo eh conectado ao Blynk.Cloud
 BLYNK_CONNECTED()
 {
-  // Change Web Link Button message to "Congratulations!"
+  // Muda a mensagem do botao virtual para  "Congratulations!" 
   Blynk.setProperty(V3, "offImageUrl", "https://static-image.nyc3.cdn.digitaloceanspaces.com/general/fte/congratulations.png");
   Blynk.setProperty(V3, "onImageUrl",  "https://static-image.nyc3.cdn.digitaloceanspaces.com/general/fte/congratulations_pressed.png");
   Blynk.setProperty(V3, "url", "https://docs.blynk.io/en/getting-started/what-do-i-need-to-blynk/how-quickstart-device-was-made");
+  // ainda ha muito do app original no que tempos no SmartBevCooler
+  //------------ OBJETIVO-----------
+
+  // Melhorar a interface do app, incluir imagem que indique que eh o software do SMC no lugar
+  // da faixa de parabens
 }
 
-// This function sends Arduino's uptime every second to Virtual Pin 2.
+
+// Essa funcao funciona periodicamente lendo os valores de temperatura.
 void myTimerEvent()
 {
-  // You can send any value at any time.
-  // Please don't send more that 10 values per second.
+  // Os valores não podem ser atualizados a qualquer momento por haver um limite
+  // de 10 envios de mensagem por segundo ao Blynk para garantia de funcionamento da conexao.
   sensors.requestTemperatures();
   float t = sensors.getTempCByIndex(0);
-  if (t <= 24) {
-    digitalWrite(RELAY, LOW);
+  if (t <= 24) { // gatilhos criados para facil teste a temperatura ambiente. Trocar valores posteriormente
+    digitalWrite(RELAY, LOW); // Atuacao do Rele
   } 
   if (t>= 25 ){
     digitalWrite(RELAY, HIGH);
@@ -121,10 +132,12 @@ void setupLevelSensors() {
  }
 
 
-void setup()
+void setup() //Setup padrao, inicia os servicos de cada classe
 {
   
-  Serial.begin(115200);
+  Serial.begin(115200); // valor deve ser alterado para uso com a IDE do Arduino. No 
+                        // PlatformIO, como foi utilizado, basta conversar com definicoes 
+                        // no arquivo platformio.ini 
   void setupLevelSensors();
   Blynk.begin(auth, ssid, pass);
   timer.setInterval(1000L, myTimerEvent);
